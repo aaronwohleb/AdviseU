@@ -1,5 +1,5 @@
-import ICourseRepository from "../../domain/repositories/ICourseRepository";
+import {ICourseRepository} from "../../../domain/repositories/ICourseRepository";
 
-class CourseRepository implements ICourseRepository {
+class MongoCourseRepository implements ICourseRepository {
 
 }
