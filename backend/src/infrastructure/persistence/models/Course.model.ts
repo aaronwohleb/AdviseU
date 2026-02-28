@@ -1,0 +1,1 @@
+// Defines the Mongo schema for Course
