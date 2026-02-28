@@ -1,0 +1,1 @@
+// Converts mongo schema objects to domain objects.
