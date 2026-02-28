@@ -2,6 +2,7 @@ import "dotenv/config";
 import express from "express"
 import http from "http"
 import cors from "cors"
+import createRouter from "./api/routes/route";
 
 const PORT_NUM = process.env.PORT || 3000;
 
@@ -16,9 +17,7 @@ app.use(
 );
 
 
-app.use("/api", (req, res) => {
-    res.json({ message: "Hello from the backend!" });
-})
+app.use("/api", createRouter());
 
 const server = http.createServer(app);
 
