@@ -1,9 +1,11 @@
 import { motion, useMotionValue, useSpring, useTransform, useMotionTemplate } from 'framer-motion';
 import { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import advisingBg from '../assets/advising-bg.png';
 
 export default function MainMenu() {
-  // 1. Mouse tracking setup
+    const navigate = useNavigate();
+  // Mouse tracking setup for title shimmer
   const mouseX = useMotionValue(0);
   const mouseY = useMotionValue(0);
 
@@ -56,7 +58,7 @@ export default function MainMenu() {
           transition={{ duration: 0.8, ease: "easeOut" }}
           className="relative mb-6 flex items-center justify-center"
         >
-          {/* LAYER 1: Outer glow */}
+          {/* Outer glow for title */}
           <motion.h1
             className="text-7xl md:text-9xl font-extrabold tracking-tighter absolute blur-[16px] opacity-40 select-none pointer-events-none"
             style={{
@@ -70,7 +72,7 @@ export default function MainMenu() {
             AdviseU
           </motion.h1>
 
-          {/* LAYER 2: Inner glow */}
+          {/* Inner glow for title */}
           <motion.h1
             className="text-7xl md:text-9xl font-extrabold tracking-tighter absolute blur-[4px] opacity-60 select-none pointer-events-none"
             style={{
@@ -84,7 +86,7 @@ export default function MainMenu() {
             AdviseU
           </motion.h1>
 
-          {/* LAYER 3: The solid text on top */}
+          {/* Title */}
           <motion.h1
             className="text-7xl md:text-9xl font-extrabold tracking-tighter relative z-10"
             style={{
@@ -109,7 +111,7 @@ export default function MainMenu() {
           </p>
         </motion.div>
 
-        {/* Button with animated sweep/shine */}
+        {/* Button with animated shine */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -118,7 +120,10 @@ export default function MainMenu() {
         >
           <div className="absolute -inset-1 bg-gradient-to-r from-[#FF9FB3] to-[#D0B3FF] rounded-full blur opacity-20 group-hover:opacity-50 transition duration-500"></div>
           
-          <button className="relative bg-academicPurple/80 hover:bg-academicPurple border border-white/20 text-unlCream font-bold py-4 px-12 rounded-full text-lg shadow-xl overflow-hidden transition-all duration-300 ease-in-out flex items-center gap-3 backdrop-blur-md cursor-pointer hover:scale-105 active:scale-95">
+          <button 
+            onClick={() => navigate('/create')}
+            className="relative bg-academicPurple/80 hover:bg-academicPurple border border-white/20 text-unlCream font-bold py-4 px-12 rounded-full text-lg shadow-xl overflow-hidden transition-all duration-300 ease-in-out flex items-center gap-3 backdrop-blur-md cursor-pointer hover:scale-105 active:scale-95"
+          >
             <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent group-hover:animate-[shimmer_1.5s_infinite] skew-x-12"></div>
             
             <span className="relative z-10 tracking-wide">Get Started</span>
