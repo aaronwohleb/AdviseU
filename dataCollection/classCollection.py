@@ -24,12 +24,9 @@ def parse_unl_catalog(subject_code):
     soup = BeautifulSoup(response.content, 'html.parser')
     courses = []
 
-    # Target the 'courseblock' div from your example
     course_blocks = soup.find_all('div', class_='courseblock')
 
     for block in course_blocks:
-        # 1. Extract Course ID (e.g., CSCE 101L)
-        # We find the subject and number spans separately
         subj_span = block.find('span', class_='cb_subject_code')
         num_span = block.find('span', class_='cb_course_number')
         
@@ -39,28 +36,24 @@ def parse_unl_catalog(subject_code):
         else:
             continue
 
-        # 2. Extract Title
+        # Extract Title
         title_span = block.find('span', class_='title')
         title = title_span.get_text().strip() if title_span else "Unknown Title"
 
-        # 3. Extract Prerequisites
+        # Extract Prerequisites
         prereq_div = block.find('div', class_='cb_prereqs')
         prereqs_list = []
         if prereq_div:
-            # Look for <a> tags which usually contain the course links
             prereq_links = prereq_div.find_all('a', class_='bubblelink')
             for link in prereq_links:
                 prereqs_list.append(clean_string(link.get_text()))
             
-            # Fallback: If no links, use regex to find codes in the text
             if not prereqs_list:
                 text = prereq_div.get_text()
-                # Regex looks for 4 letters followed by 3-4 digits/letters
                 matches = re.findall(r'([A-Z]{4}\s\d{3}[A-Z]?)', text)
                 prereqs_list = [clean_string(m) for m in matches]
 
-        # 4. Extract Credit Hours
-        # Found inside the 'cb_details' table in your example
+        # Extract Credit Hours
         credits = "0"
         details_table = block.find('table', class_='cb_details')
         if details_table:
@@ -68,7 +61,6 @@ def parse_unl_catalog(subject_code):
                 if 'Credit Hours:' in row.get_text():
                     credits = row.find('td').get_text().strip()
 
-        # Build the final course object
         course_data = {
             "id": course_id,
             "title": title,
@@ -79,20 +71,22 @@ def parse_unl_catalog(subject_code):
 
     return courses
 
-# --- RUN THE SCRIPT ---
 if __name__ == "__main__":
-    # You can expand this list to include MATH, SOFT, etc.
-    target_depts = ["CSCE"] 
+    target_depts = ["ACCT", "ADPR", "AECN", "AGEN", "AGRI", "AGRO", "ALEC", "ANTH", "ARAB", "ARCH", 
+    "ARTP", "ASCI", "ASTR", "BIOS", "BLAS", "BSAD", "BSEN", "CHME", "CHEM", "CHIN", 
+    "CIVE", "CLAS", "COMM", "CONE", "CRIM", "CSCE", "CYAF", "DSGN", "ECON", "EDAD", 
+    "EDPS", "EMGT", "ENGL", "ENGR", "ENTO", "ETHN", "FDST", "FINA", "FREN", "GEOG", 
+    "GEOL", "GERM", "GIST", "GRPH", "GREK", "HIST", "HORT", "HRTM", "HUMA", "IDES", 
+    "IECC", "IMM", "ITAL", "JAPN", "JOMC", "JOUR", "LARC", "LATN", "LAW", "LIFE", 
+    "MATH", "MECH", "METR", "MNGT", "MODL", "MRKT", "MSYM", "MUDC", "MUED", "MUNM", 
+    "MUSC", "NRES", "NUTR", "PHIL", "PHYS", "POLS", "PSYC", "RAIK", "RELS", "RUSS", 
+    "SCMS", "SOCI", "SOFT", "SPAN", "SPED", "STAT", "TEAC", "THEA", "UHON", "WMNS"] 
     
     all_results = []
     for dept in target_depts:
         dept_courses = parse_unl_catalog(dept)
         all_results.extend(dept_courses)
 
-    # Print the results in a pretty format
-    print("\n--- SCRAPED COURSES ---")
-    print(json.dumps(all_results, indent=2))
+    with open('all_unl_classes.json', 'w') as f:
+        json.dump(all_results, f, indent=2)
     
-    # Optional: Save to file for your DTO/Backend
-    # with open('courses.json', 'w') as f:
-    #     json.dump(all_results, f)
