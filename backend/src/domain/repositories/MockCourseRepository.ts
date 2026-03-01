@@ -15,4 +15,8 @@ export class MockCourseRepository implements ICourseRepository {
     async addCourse(course: Course): Promise<void> {
         this.courses.set(course.coursecode, course);
     }
+
+    async findAll(): Promise<Course[]> {
+        return Array.from(this.courses.values());
+    }
 }

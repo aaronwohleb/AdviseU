@@ -2,8 +2,9 @@
 import { Major } from "../../../domain/Major";
 import { MajorModel } from "../models/Major.model";
 import { MajorMapper } from "../mappers/MajorMapper";
+import { IMajorRepository } from "../../../domain/repositories/IMajorRepository";
 
-export class MongoMajorRepository /* implements IMajorRepository */ {
+export class MongoMajorRepository implements IMajorRepository {
   async findById(id: string): Promise<Major | null> {
     const doc = await MajorModel.findById(id);
     if (!doc) return null;
