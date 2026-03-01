@@ -17,4 +17,6 @@ export class Course {
     this.prereqs = prereqs;
     this.credits = credits;
   }
+
+  
 }

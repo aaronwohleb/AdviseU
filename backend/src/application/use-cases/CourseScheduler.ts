@@ -16,8 +16,17 @@ export class CourseScheduler {
     private maxCreditsPerSemester: number,
     private courseRepository: ICourseRepository
     
-  ) {
-    this.initializeState();
+  ) {}
+
+  public static async create(
+    courses: Course[],
+    maxCreditsPerSemester: number,
+    courseRepository: ICourseRepository
+  ): Promise<CourseScheduler> {
+    const scheduler = new CourseScheduler(courses, maxCreditsPerSemester, courseRepository);
+    await scheduler.initializeState(); 
+    scheduler.computeDepths(); // Call this AFTER state is initialized
+    return scheduler;
   }
 
   public buildSchedule(): Course[][] {
@@ -52,9 +61,16 @@ export class CourseScheduler {
                 this.satisfiesMap.set(course, []);
             }
 
+
             course.prereqs.forEach(async (group, i: number) => {
                 for (const prereqCourse of group.courses) {
-                    this.addReverseDependency(await this.courseRepository.findByCourseCode(prereqCourse), course, i);
+                    const resolvedPrereqCourse = await this.courseRepository.findByCourseCode(prereqCourse);
+
+                    if (resolvedPrereqCourse === null) {
+                        throw new Error(`Prerequisite course ${prereqCourse} not found in repository.`);
+                    } else {
+                        this.addReverseDependency(resolvedPrereqCourse, course, i);
+                    }
                 }
             });
 

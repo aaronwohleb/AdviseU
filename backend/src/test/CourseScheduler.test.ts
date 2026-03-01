@@ -1,29 +1,28 @@
 import { describe, it, expect } from "vitest";
 import { CourseScheduler } from "../application/use-cases/CourseScheduler";
 import type { Course } from "../domain/Course";
+import { MockCourseRepository } from "../domain/repositories/MockCourseRepository";
 
-function course(
-  code: string,
-  credits = 3,
-  prereqs: Course[][] = []
-): Course {
-  return {
+function course(code: string, credits = 3, prereqs: Course[][] = [], repo: MockCourseRepository): Course {
+  const c = {
     coursecode: code,
-    major: "TEST",
     credits,
-    prereqs: prereqs.map(group => ({ courses: group }))
-  };
+    prereqs: prereqs.map(g => ({ courses: g.map(opt => opt.coursecode) }))
+  } as Course;
+  repo.addCourse(c); // Ensure this updates if the code already exists
+  return c;
 }
 
 describe("CourseScheduler - No prerequisites", () => {
 
-  it("schedules all courses in first semester when no prereqs", () => {
+  it("schedules all courses in first semester when no prereqs", async () => {
+    const courseRepository = new MockCourseRepository();
 
-    const A = course("A");
-    const B = course("B");
-    const C = course("C");
+    const A = course("A", 3, [], courseRepository);
+    const B = course("B", 3, [], courseRepository);
+    const C = course("C", 3, [], courseRepository);
 
-    const scheduler = new CourseScheduler([A, B, C], 9);
+    const scheduler = await CourseScheduler.create([A, B, C], 9, courseRepository);
     const schedule = scheduler.buildSchedule();
 
     expect(schedule.length).toBe(1);
@@ -34,13 +33,15 @@ describe("CourseScheduler - No prerequisites", () => {
 
 describe("AND prerequisites", () => {
 
-  it("enforces sequential dependency", () => {
+  it("enforces sequential dependency", async () => {
 
-    const A = course("A");
-    const B = course("B");
-    const C = course("C", 3, [[A], [B]]); // A AND B
+    const courseRepository = new MockCourseRepository();
 
-    const scheduler = new CourseScheduler([A, B, C], 6);
+    const A = course("A", 3, [], courseRepository);
+    const B = course("B", 3, [], courseRepository);
+    const C = course("C", 3, [[A], [B]], courseRepository); // A AND B
+
+    const scheduler = await CourseScheduler.create([A, B, C], 6, courseRepository);
     const schedule = scheduler.buildSchedule();
 
     expect(schedule.length).toBe(2);
@@ -53,13 +54,15 @@ describe("AND prerequisites", () => {
 
 describe("OR prerequisites", () => {
 
-  it("requires only one option", () => {
+  it("requires only one option", async () => {
 
-    const A = course("A");
-    const B = course("B");
-    const C = course("C", 3, [[A, B]]); // A OR B
+    const courseRepository = new MockCourseRepository();
 
-    const scheduler = new CourseScheduler([A, B, C], 6);
+    const A = course("A", 3, [], courseRepository);
+    const B = course("B", 3, [], courseRepository);
+    const C = course("C", 3, [[A, B]], courseRepository); // A OR B
+
+    const scheduler = await CourseScheduler.create([A, B, C], 6, courseRepository);
     const schedule = scheduler.buildSchedule();
 
     expect(schedule.length).toBe(2);
@@ -76,14 +79,16 @@ describe("OR prerequisites", () => {
 
 describe("AND-of-OR prerequisites", () => {
 
-  it("handles multi-group logic", () => {
+  it("handles multi-group logic", async () => {
 
-    const A = course("A");
-    const B = course("B");
-    const C = course("C");
-    const D = course("D", 3, [[A, B], [C]]); // (A OR B) AND C
+    const courseRepository = new MockCourseRepository();
 
-    const scheduler = new CourseScheduler([A, B, C, D], 9);
+    const A = course("A", 3, [], courseRepository);
+    const B = course("B", 3, [], courseRepository);
+    const C = course("C", 3, [], courseRepository);
+    const D = course("D", 3, [[A, B], [C]], courseRepository); // (A OR B) AND C
+
+    const scheduler = await CourseScheduler.create([A, B, C, D], 9, courseRepository);
     const schedule = scheduler.buildSchedule();
 
     expect(schedule.length).toBe(2);
@@ -96,13 +101,15 @@ describe("AND-of-OR prerequisites", () => {
 
 describe("Credit limits", () => {
 
-  it("splits semesters when credit limit reached", () => {
+  it("splits semesters when credit limit reached", async () => {
 
-    const A = course("A", 3);
-    const B = course("B", 3);
-    const C = course("C", 3);
+    const courseRepository = new MockCourseRepository();
 
-    const scheduler = new CourseScheduler([A, B, C], 6);
+    const A = course("A", 3, [], courseRepository);
+    const B = course("B", 3, [], courseRepository);
+    const C = course("C", 3, [], courseRepository);
+
+    const scheduler = await CourseScheduler.create([A, B, C], 6, courseRepository);
     const schedule = scheduler.buildSchedule();
 
     expect(schedule.length).toBe(2);
@@ -112,13 +119,17 @@ describe("Credit limits", () => {
 
 describe("Impossible schedules", () => {
 
-  it("throws on cyclic dependency", () => {
+  it("throws on cyclic dependency", async () => {
 
-    const A = course("A");
-    const B = course("B", 3, [[A]]);
-    A.prereqs = [{ courses: [B] }]; // cycle
+    const courseRepository = new MockCourseRepository();
 
-    const scheduler = new CourseScheduler([A, B], 6);
+    const A = course("A", 3, [], courseRepository);
+    const B = course("B", 3, [[A]], courseRepository);
+    A.prereqs = [{ courses: [B.coursecode] }]; // cycle
+
+    courseRepository.addCourse(A); // Update with new prereqs
+
+    const scheduler = await CourseScheduler.create([A, B], 6, courseRepository);
 
     expect(() => scheduler.buildSchedule())
         .toThrow();
@@ -128,10 +139,12 @@ describe("Impossible schedules", () => {
 
 describe("Credit deadlock", () => {
 
-  it("throws if a course cannot fit into any semester", () => {
+  it("throws if a course cannot fit into any semester", async () => {
 
-    const A = course("A", 9); // too big
-    const scheduler = new CourseScheduler([A], 6);
+    const courseRepository = new MockCourseRepository();
+
+    const A = course("A", 9, [], courseRepository); // too big
+    const scheduler = await CourseScheduler.create([A], 6, courseRepository);
 
     expect(() => scheduler.buildSchedule())
       .toThrow();
@@ -141,21 +154,24 @@ describe("Credit deadlock", () => {
 
 describe("Graduation minimization - parallel chains", () => {
 
-  it("runs independent chains in parallel", () => {
+  it("runs independent chains in parallel", async () => {
+
+    const courseRepository = new MockCourseRepository();
 
     // Chain 1: A -> B -> C
-    const A = course("A");
-    const B = course("B", 3, [[A]]);
-    const C = course("C", 3, [[B]]);
+    const A = course("A", 3, [], courseRepository);
+    const B = course("B", 3, [[A]], courseRepository);
+    const C = course("C", 3, [[B]], courseRepository);
 
     // Chain 2: D -> E -> F
-    const D = course("D");
-    const E = course("E", 3, [[D]]);
-    const F = course("F", 3, [[E]]);
+    const D = course("D", 3, [], courseRepository);
+    const E = course("E", 3, [[D]], courseRepository);
+    const F = course("F", 3, [[E]], courseRepository);
 
-    const scheduler = new CourseScheduler(
+    const scheduler = await CourseScheduler.create(
       [A, B, C, D, E, F],
-      6
+      6,
+      courseRepository
     );
 
     const schedule = scheduler.buildSchedule();
@@ -167,18 +183,21 @@ describe("Graduation minimization - parallel chains", () => {
 
 describe("Graduation minimization - unlock priority", () => {
 
-  it("takes gateway courses early", () => {
+  it("takes gateway courses early", async () => {
 
-    const G = course("G");
+    const courseRepository = new MockCourseRepository();
 
-    const A = course("A", 3, [[G]]);
-    const B = course("B", 3, [[G]]);
-    const C = course("C", 3, [[G]]);
-    const D = course("D", 3, [[G]]);
+    const G = course("G", 3, [], courseRepository);
 
-    const scheduler = new CourseScheduler(
+    const A = course("A", 3, [[G]], courseRepository);
+    const B = course("B", 3, [[G]], courseRepository);
+    const C = course("C", 3, [[G]], courseRepository);
+    const D = course("D", 3, [[G]], courseRepository);
+
+    const scheduler = await CourseScheduler.create(
       [G, A, B, C, D],
-      6
+      6,
+      courseRepository
     );
 
     const schedule = scheduler.buildSchedule();
@@ -191,22 +210,24 @@ describe("Graduation minimization - unlock priority", () => {
 
 describe("Large program test", () => {
 
-  it("handles complex AND-of-OR structure", () => {
+  it("handles complex AND-of-OR structure", async () => {
 
-    const MATH101 = course("MATH101");
-    const MATH102 = course("MATH102", 3, [[MATH101]]);
-    const MATH201 = course("MATH201", 3, [[MATH102]]);
+    const courseRepository = new MockCourseRepository();
 
-    const CS101 = course("CS101");
-    const CS102 = course("CS102", 3, [[CS101]]);
-    const CS201 = course("CS201", 3, [[CS102], [MATH102]]);
+    const MATH101 = course("MATH101", 3, [], courseRepository);
+    const MATH102 = course("MATH102", 3, [[MATH101]], courseRepository);
+    const MATH201 = course("MATH201", 3, [[MATH102]], courseRepository);
 
-    const STATS101 = course("STATS101", 3, [[MATH101]]);
-    const AI101 = course("AI101", 3, [[CS201, STATS101]]); // OR
+    const CS101 = course("CS101", 3, [], courseRepository);
+    const CS102 = course("CS102", 3, [[CS101]], courseRepository);
+    const CS201 = course("CS201", 3, [[CS102], [MATH102]], courseRepository);
 
-    const CAPSTONE = course("CAPSTONE", 3, [[CS201], [MATH201]]);
+    const STATS101 = course("STATS101", 3, [[MATH101]], courseRepository);
+    const AI101 = course("AI101", 3, [[CS201, STATS101]], courseRepository); // OR
 
-    const scheduler = new CourseScheduler(
+    const CAPSTONE = course("CAPSTONE", 3, [[CS201], [MATH201]], courseRepository); // OR
+
+    const scheduler = await CourseScheduler.create(
       [
         MATH101, MATH102, MATH201,
         CS101, CS102, CS201,
@@ -214,7 +235,8 @@ describe("Large program test", () => {
         AI101,
         CAPSTONE
       ],
-      9
+      9,
+      courseRepository
     );
 
     const schedule = scheduler.buildSchedule();
@@ -226,34 +248,38 @@ describe("Large program test", () => {
 
 describe("Wide DAG performance (nearly optimal)", () => {
 
-  it("handles many dependencies without exploding semesters", () => {
+  it("handles many dependencies without exploding semesters", async () => {
+
+    const courseRepository = new MockCourseRepository();
 
     const base = Array.from({ length: 6 }, (_, i) =>
-      course(`B${i}`)
+      course(`B${i}`, 3, [], courseRepository)
     );
 
     const mid = base.map((b, i) =>
-      course(`M${i}`, 3, [[b]])
+      course(`M${i}`, 3, [[b]], courseRepository)
     );
 
     const advanced = mid.map((m, i) =>
-      course(`A${i}`, 3, [[m]])
+      course(`A${i}`, 3, [[m]], courseRepository)
     );
 
     const capstone = course(
       "CAP",
       3,
-      [advanced] // OR across many
+      [advanced], // OR across many,
+        courseRepository
     );
 
-    const scheduler = new CourseScheduler(
+    const scheduler = await CourseScheduler.create(
       [...base, ...mid, ...advanced, capstone],
-      12
+      12,
+      courseRepository
     );
 
     const schedule = scheduler.buildSchedule();
 
-    expect(schedule.length).lessThanOrEqual(5);
+    expect(schedule.length).toBeLessThanOrEqual(5);
   });
 
 });

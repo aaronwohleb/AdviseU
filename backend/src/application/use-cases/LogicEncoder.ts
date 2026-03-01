@@ -7,10 +7,10 @@ import { Track } from "../../domain/Track";
 import Logic, { Solver } from "logic-solver";
 
 export class LogicEncoder {
-
-    private sub_req_counter = 0; // For generating unique IDs for sub-requirements
+    private sub_req_counter = 0;
+    private processedPrereqs: Set<string> = new Set(); // Prevent infinite recursion
     solver: Solver;
-    searchSpace: Set<string> = new Set(); // Track all variables created
+    searchSpace: Set<string> = new Set();
     courseRepository: ICourseRepository;
 
     constructor(solver: Solver = new Logic.Solver(), courseRepository: ICourseRepository) {
@@ -18,67 +18,83 @@ export class LogicEncoder {
         this.courseRepository = courseRepository;
     }
 
-    encodeMajor(major: Major, solver: Solver = this.solver) {
-        // 1. TRACKS: One track is required (OR)
+    async encodeMajor(major: Major, solver: Solver = this.solver) {
+        // 1. TRACKS
         if (major.tracks.length > 0) {
-            const trackVars = major.tracks.map((t: Track) => this.encodeTrack(solver, t));
+            const trackVarPromises = major.tracks.map(t => this.encodeTrack(solver, t));
+            const trackVars = await Promise.all(trackVarPromises);
             solver.require(Logic.or(...trackVars));
         }
 
-
-        // 2. MAJOR REQUIREMENTS: All must be met (AND)
-        if (major.reqs.length > 0) {
-            major.reqs.forEach((req: Requirement) => {
-                this.encodeRequirement(solver, req);
-            });
+        // 2. MAJOR REQUIREMENTS
+        // Changed to for...of to respect async
+        for (const req of major.reqs) {
+            await this.encodeRequirement(solver, req);
         }
     }
 
-    private encodeTrack(solver: Solver, track: Track) {
+    private async encodeTrack(solver: Solver, track: Track) {
         const trackVar = `Track_${track.name}`;
-        // All requirements in a track must be met IF the track is chosen
-        track.reqs.forEach((req: Requirement) => {
-            const reqSatisfiedVar = this.encodeRequirement(solver, req, true); // Create a sub-variable
+        for (const req of track.reqs) {
+            const reqSatisfiedVar = await this.encodeRequirement(solver, req, true);
             solver.require(Logic.implies(trackVar, reqSatisfiedVar));
-        });
+        }
         return trackVar;
     }
 
-    private encodeRequirement(solver: Solver, req: Requirement, returnVar = false) {
-        // Use "Shadow Variables" for ACE/Specific slots if needed, 
-        // but here we use course codes directly.
+    private async encodeRequirement(solver: Solver, req: Requirement, returnVar = false) {
         const courseCodes = req.courses.map((c: Course) => c.coursecode);
-        this.encodePrereqs(solver, req.courses); // Encode any prerequisites for these courses
-        courseCodes.forEach(code => this.searchSpace.add(code)); // Add courses to search space
         
+        // Ensure prereqs are encoded for all courses in this requirement
+        await this.encodePrereqs(solver, req.courses);
+
+        courseCodes.forEach(code => this.searchSpace.add(code));
+        
+        const sumConstraint = Logic.greaterThanOrEqual(
+            Logic.sum(courseCodes), 
+            Logic.constantBits(req.num)
+        );
+
         if (returnVar) {
-            const reqId = `Req_${this.sub_req_counter++}`; // Unique ID for this requirement
-            // Logic: reqId is true IF at least 'num' courses are true
-            solver.require(Logic.equiv(reqId, Logic.greaterThanOrEqual(Logic.sum(courseCodes), Logic.constantBits(req.num))));
+            const reqId = `Req_${this.sub_req_counter++}`;
+            solver.require(Logic.equiv(reqId, sumConstraint));
             return reqId;
         } else {
-            // Standard mandatory requirement
-            solver.require(Logic.greaterThanOrEqual(Logic.sum(courseCodes), Logic.constantBits(req.num)));
+            solver.require(sumConstraint);
         }
     }
 
-    private encodePrereqs(solver: Solver, allCourses: Course[]) {
-        allCourses.forEach(course => {
-            course.prereqs.forEach((prereq: Prerequisite) => {
-                const prereqCourses = prereq.courses.map((code: string) => this.courseRepository.findByCourseCode(code));
-                const options = prereq.courses;
-                this.encodePrereqs(solver, prereqCourses); // Recursively encode nested prereqs
+    private async encodePrereqs(solver: Solver, courses: Course[]) {
+        for (const course of courses) {
+            // Skip if we've already defined rules for this course to avoid cycles/redundancy
+            if (this.processedPrereqs.has(course.coursecode)) continue;
+            this.processedPrereqs.add(course.coursecode);
+
+            for (const prereq of course.prereqs) {
+                const options = prereq.courses; // array of strings (course codes)
+                
+                // 1. Resolve course objects for recursion
+                const resolvedPromises = options.map(code => this.courseRepository.findByCourseCode(code));
+                const resolvedCourses = await Promise.all(resolvedPromises);
+
+                if (resolvedCourses.some(c => c === null)) {
+                    throw new Error(`Prerequisite course for ${course.coursecode} not found.`);
+                }
+
+                // 2. Add to search space
                 options.forEach(opt => this.searchSpace.add(opt));
 
-                if (options.length == 1) {
-                    // Logic: Course => PrereqCourse
+                // 3. Recursively encode the prerequisites of these options
+                // (Cast to Course[] safe because of the null check above)
+                await this.encodePrereqs(solver, resolvedCourses as Course[]);
+
+                // 4. Require the logic: Course -> (Prereq1 OR Prereq2)
+                if (options.length === 1) {
                     solver.require(Logic.implies(course.coursecode, options[0]));
                 } else {
-                    // Logic: CourseCode => (Option1 OR Option2 OR Option3)
-                    solver.require(Logic.implies(course.coursecode,Logic.or(...options)));
+                    solver.require(Logic.implies(course.coursecode, Logic.or(...options)));
                 }
-            });
-        });
+            }
+        }
     }
-
 }

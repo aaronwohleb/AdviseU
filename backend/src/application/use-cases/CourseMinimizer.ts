@@ -18,9 +18,11 @@ export class CourseMinimizer {
         this.completed = completed;
     }
 
-    findMinimalCourses() {
+    async findMinimalCourses() {
         // 1. Encode all majors and their requirements
-        this.majors.forEach(major => this.encoder.encodeMajor(major, this.solver));
+        for (const major of this.majors) {
+            await this.encoder.encodeMajor(major, this.solver);
+        }
         // 2. Encode completed courses
         this.completed.forEach(course => {
             this.solver.require(course.coursecode); // Mark completed courses as true
