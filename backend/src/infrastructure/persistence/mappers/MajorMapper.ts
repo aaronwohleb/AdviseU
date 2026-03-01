@@ -3,35 +3,56 @@ import { Track } from "../../../domain/Track";
 import { Requirement } from "../../../domain/Requirement";
 import { Course } from "../../../domain/Course";
 import { CourseMapper } from "./CourseMapper";
+import { MongoCourseRepository } from "../repositories/MongoCourseRepository";
 
 export class MajorMapper {
-  // Requires populated courses within reqs and tracks:
-  // MajorModel.findById(id)
-  //   .populate("reqs.courses")
-  //   .populate("tracks.reqs.courses")
   static toDomain(doc: any): Major {
-    const reqs: Requirement[] = MajorMapper.mapRequirements(doc.reqs);
-    const tracks: Track[] = MajorMapper.mapTracks(doc.tracks);
+    const tracks: Track[] = this.getTracks(doc);
+    const reqs: Requirement[] = this.getReqs(doc);
+
     return new Major(tracks, reqs, doc.name ?? "", doc.college ?? "");
   }
 
-  // ---------- private helpers ----------
+  private static getTracks(doc: any): Track[] {
+    let tracks: Track[] = [];
 
-  private static mapRequirements(rawReqs: any[]): Requirement[] {
-    if (!Array.isArray(rawReqs)) return [];
-    return rawReqs.map((req: any) => {
-      const courses = Array.isArray(req.courses)
-        ? req.courses.map((c: any) => CourseMapper.toDomain(c))
-        : [];
-      return new Requirement(courses, req.num ?? 0);
-    });
+    for (let i = 0; i < doc.tracks.length; i++) {
+      let reqs: Requirement[] = [];
+      for (let j = 0; j < doc.tracks[i].reqs.length; j++) {
+        const courses: string[] = doc.tracks[i].reqs[j].courses;
+        let Dcourses: Course[] = [];
+        for (let k = 0; k < courses.length; k++) {
+          const course = courses[k];
+          if (course !== undefined) {
+            Dcourses.push(this.getCourseByID(course));
+          }
+        }
+        reqs.push(new Requirement(Dcourses, 1));
+      }
+      tracks.push(new Track(reqs, doc.tracks[i].name, doc.tracks[i].college));
+    }
+    return tracks;
   }
 
-  private static mapTracks(rawTracks: any[]): Track[] {
-    if (!Array.isArray(rawTracks)) return [];
-    return rawTracks.map((track: any) => {
-      const reqs = MajorMapper.mapRequirements(track.reqs);
-      return new Track(reqs, track.name ?? "", track.college ?? "");
-    });
+  private static getReqs(doc: any): Requirement[] {
+    let reqs: Requirement[] = [];
+    for (let j = 0; j < doc.reqs.length; j++) {
+      const courses: string[] = doc.reqs[j].courses;
+      let Dcourses: Course[] = [];
+      for (let k = 0; k < courses.length; k++) {
+        const course = courses[k];
+        if (course !== undefined) {
+          Dcourses.push(this.getCourseByID(course));
+        }
+      }
+      reqs.push(new Requirement(Dcourses, 1));
+    }
+    return reqs;
+  }
+
+  //may break things cause a call to database; may return null
+  private static getCourseByID(coursename: string): any {
+    const m = new MongoCourseRepository();
+    return m.findById(coursename);
   }
 }
