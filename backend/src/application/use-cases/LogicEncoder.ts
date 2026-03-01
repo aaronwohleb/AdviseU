@@ -1,6 +1,7 @@
 import { Course } from "../../domain/Course";
 import { Major } from "../../domain/Major";
 import { Prerequisite } from "../../domain/Prerequisite";
+import { ICourseRepository } from "../../domain/repositories/ICourseRepository";
 import { Requirement } from "../../domain/Requirement";
 import { Track } from "../../domain/Track";
 import Logic, { Solver } from "logic-solver";
@@ -10,9 +11,11 @@ export class LogicEncoder {
     private sub_req_counter = 0; // For generating unique IDs for sub-requirements
     solver: Solver;
     searchSpace: Set<string> = new Set(); // Track all variables created
+    courseRepository: ICourseRepository;
 
-    constructor(solver: Solver = new Logic.Solver()) {
+    constructor(solver: Solver = new Logic.Solver(), courseRepository: ICourseRepository) {
         this.solver = solver;
+        this.courseRepository = courseRepository;
     }
 
     encodeMajor(major: Major, solver: Solver = this.solver) {
@@ -62,8 +65,9 @@ export class LogicEncoder {
     private encodePrereqs(solver: Solver, allCourses: Course[]) {
         allCourses.forEach(course => {
             course.prereqs.forEach((prereq: Prerequisite) => {
-                const options = prereq.courses.map((c: Course) => c.coursecode);
-                this.encodePrereqs(solver, prereq.courses); // Recursively encode nested prereqs
+                const prereqCourses = prereq.courses.map((code: string) => this.courseRepository.findByCourseCode(code));
+                const options = prereq.courses;
+                this.encodePrereqs(solver, prereqCourses); // Recursively encode nested prereqs
                 options.forEach(opt => this.searchSpace.add(opt));
 
                 if (options.length == 1) {

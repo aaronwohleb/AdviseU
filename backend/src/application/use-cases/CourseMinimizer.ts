@@ -3,6 +3,7 @@ import Logic, { Solution, Solver } from "logic-solver";
 import { Course } from "../../domain/Course";
 import { Prerequisite } from "../../domain/Prerequisite";
 import { LogicEncoder } from "./LogicEncoder";
+import { ICourseRepository } from "../../domain/repositories/ICourseRepository";
 
 export class CourseMinimizer {
     solver: Solver;
@@ -10,9 +11,9 @@ export class CourseMinimizer {
     majors: Major[];
     completed: Course[];
 
-    constructor(majors: Major[], completed: Course[]) {
+    constructor(majors: Major[], completed: Course[], courseRepository: ICourseRepository) {
         this.solver = new Logic.Solver();
-        this.encoder = new LogicEncoder(this.solver);
+        this.encoder = new LogicEncoder(this.solver, courseRepository);
         this.majors = majors;
         this.completed = completed;
     }
