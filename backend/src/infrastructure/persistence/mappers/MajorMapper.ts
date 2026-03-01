@@ -53,6 +53,6 @@ export class MajorMapper {
   //may break things cause a call to database; may return null
   private static getCourseByID(coursename: string): any {
     const m = new MongoCourseRepository();
-    return m.findById(coursename);
+    return m.findByCourseCode(coursename);
   }
 }
