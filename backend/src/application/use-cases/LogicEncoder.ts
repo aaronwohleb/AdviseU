@@ -9,6 +9,7 @@ export class LogicEncoder {
 
     private sub_req_counter = 0; // For generating unique IDs for sub-requirements
     solver: Solver;
+    searchSpace: Set<string> = new Set(); // Track all variables created
 
     constructor(solver: Solver = new Logic.Solver()) {
         this.solver = solver;
@@ -16,13 +17,18 @@ export class LogicEncoder {
 
     encodeMajor(major: Major, solver: Solver = this.solver) {
         // 1. TRACKS: One track is required (OR)
-        const trackVars = major.tracks.map((t: Track) => this.encodeTrack(solver, t));
-        solver.require(Logic.or(...trackVars));
+        if (major.tracks.length > 0) {
+            const trackVars = major.tracks.map((t: Track) => this.encodeTrack(solver, t));
+            solver.require(Logic.or(...trackVars));
+        }
+
 
         // 2. MAJOR REQUIREMENTS: All must be met (AND)
-        major.reqs.forEach((req: Requirement) => {
-            this.encodeRequirement(solver, req);
-        });
+        if (major.reqs.length > 0) {
+            major.reqs.forEach((req: Requirement) => {
+                this.encodeRequirement(solver, req);
+            });
+        }
     }
 
     private encodeTrack(solver: Solver, track: Track) {
@@ -39,24 +45,34 @@ export class LogicEncoder {
         // Use "Shadow Variables" for ACE/Specific slots if needed, 
         // but here we use course codes directly.
         const courseCodes = req.courses.map((c: Course) => c.coursecode);
+        this.encodePrereqs(solver, req.courses); // Encode any prerequisites for these courses
+        courseCodes.forEach(code => this.searchSpace.add(code)); // Add courses to search space
         
         if (returnVar) {
             const reqId = `Req_${this.sub_req_counter++}`; // Unique ID for this requirement
             // Logic: reqId is true IF at least 'num' courses are true
-            solver.require(Logic.equivalent(reqId, Logic.atLeast(req.num, ...courseCodes)));
+            solver.require(Logic.equiv(reqId, Logic.greaterThanOrEqual(Logic.sum(courseCodes), Logic.constantBits(req.num))));
             return reqId;
         } else {
             // Standard mandatory requirement
-            solver.require(Logic.atLeast(req.num, ...courseCodes));
+            solver.require(Logic.greaterThanOrEqual(Logic.sum(courseCodes), Logic.constantBits(req.num)));
         }
     }
 
     private encodePrereqs(solver: Solver, allCourses: Course[]) {
         allCourses.forEach(course => {
             course.prereqs.forEach((prereq: Prerequisite) => {
-            const options = prereq.courses.map((c: Course) => c.coursecode);
-            // Logic: CourseCode => (Option1 OR Option2 OR Option3)
-            solver.require(Logic.implies(course.coursecode, Logic.or(...options)));
+                const options = prereq.courses.map((c: Course) => c.coursecode);
+                this.encodePrereqs(solver, prereq.courses); // Recursively encode nested prereqs
+                options.forEach(opt => this.searchSpace.add(opt));
+
+                if (options.length == 1) {
+                    // Logic: Course => PrereqCourse
+                    solver.require(Logic.implies(course.coursecode, options[0]));
+                } else {
+                    // Logic: CourseCode => (Option1 OR Option2 OR Option3)
+                    solver.require(Logic.implies(course.coursecode,Logic.or(...options)));
+                }
             });
         });
     }
