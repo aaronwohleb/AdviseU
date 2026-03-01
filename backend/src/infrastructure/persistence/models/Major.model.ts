@@ -1,10 +1,13 @@
 import mongoose from "mongoose";
 const { Schema, model } = mongoose;
 
-const requirementSchema = new Schema({
-  courses: [{ type: Schema.Types.ObjectId, ref: "Course" }],
-  num: Number,
-});
+const requirementSchema = new Schema(
+  {
+    courses: [String], //course ids
+    num: Number,
+  },
+  { _id: false },
+);
 
 const trackSchema = new Schema({
   reqs: [requirementSchema],

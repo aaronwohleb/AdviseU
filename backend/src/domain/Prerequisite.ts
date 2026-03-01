@@ -1,8 +1,8 @@
 import { Course } from "./Course";
 
 export class Prerequisite {
-  courses: Course[];
-  constructor(courses: Course[]) {
+  courses: string[];
+  constructor(courses: string[]) {
     this.courses = courses;
   }
 }
