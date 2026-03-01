@@ -95,7 +95,12 @@ export default function CreatePlan() {
       />
 
       {/* --- FOREGROUND CONTENT --- */}
-      <div className="relative z-10 max-w-2xl w-full bg-white/90 backdrop-blur-xl p-8 md:p-12 rounded-3xl shadow-[0_8px_32px_0_rgba(0,0,0,0.3)] border border-white/20">
+      <motion.div 
+        initial={{ opacity: 0, y: 40 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.8, ease: "easeOut", delay: 0.1 }}
+        className="relative z-10 max-w-2xl w-full bg-white/90 backdrop-blur-xl p-8 md:p-12 rounded-3xl shadow-[0_8px_32px_0_rgba(0,0,0,0.3)] border border-white/20"
+      >
         
         <h2 className="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-academicPurple to-unlScarlet mb-2">
           Your Academic Profile
@@ -173,7 +178,7 @@ export default function CreatePlan() {
             )}
           </button>
         </form>
-      </div>
+      </motion.div>
     </div>
   );
 }
