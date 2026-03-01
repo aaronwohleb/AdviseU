@@ -15,4 +15,6 @@ export class MongoCourseRepository implements ICourseRepository {
     const docs = await CourseModel.find();
     return docs.map((doc) => CourseMapper.toDomain(doc));
   }
+
+  async addCourse(): Promise<void> {}
 }
