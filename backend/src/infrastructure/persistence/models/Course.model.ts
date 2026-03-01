@@ -3,10 +3,18 @@
 import mongoose from "mongoose";
 const { Schema, model } = mongoose;
 
+const prerequisiteSchema = new Schema(
+  {
+    courses: [{ type: String, ref: "Course" }],
+  },
+  { _id: false },
+);
+
 const courseSchema = new Schema({
-  coursecode: { type: String, required: true },
+  _id: { type: String, required: true },
   major: String,
-  prereqs: [{ type: Schema.Types.ObjectId, ref: "Course" }],
+  //prereqs: [[{ type: String, ref: "Course" }]],
+  prereqs: [prerequisiteSchema],
   credits: Number,
 });
 
