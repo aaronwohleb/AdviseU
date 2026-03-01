@@ -5,15 +5,14 @@ const { Schema, model } = mongoose;
 
 const prerequisiteSchema = new Schema(
   {
-    courses: [{ type: String, ref: "Course" }],
+    courses: [String], //these strings will be course ids
   },
   { _id: false },
 );
 
 const courseSchema = new Schema({
   _id: { type: String, required: true },
-  major: String,
-  //prereqs: [[{ type: String, ref: "Course" }]],
+  classname: String,
   prereqs: [prerequisiteSchema],
   credits: Number,
 });

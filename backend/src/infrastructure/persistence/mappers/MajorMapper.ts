@@ -15,19 +15,6 @@ export class MajorMapper {
     return new Major(tracks, reqs, doc.name ?? "", doc.college ?? "");
   }
 
-  static toPersistence(major: Major): Record<string, unknown> {
-    return {
-      name: major.name,
-      college: major.college,
-      reqs: major.reqs.map(MajorMapper.requirementToPersistence),
-      tracks: major.tracks.map((track: Track) => ({
-        name: track.name,
-        college: track.college,
-        reqs: track.reqs.map(MajorMapper.requirementToPersistence),
-      })),
-    };
-  }
-
   // ---------- private helpers ----------
 
   private static mapRequirements(rawReqs: any[]): Requirement[] {
@@ -46,14 +33,5 @@ export class MajorMapper {
       const reqs = MajorMapper.mapRequirements(track.reqs);
       return new Track(reqs, track.name ?? "", track.college ?? "");
     });
-  }
-
-  private static requirementToPersistence(
-    req: Requirement,
-  ): Record<string, unknown> {
-    return {
-      num: req.num,
-      courses: req.courses.map((c: Course) => c.coursecode),
-    };
   }
 }

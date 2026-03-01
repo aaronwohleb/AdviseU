@@ -2,29 +2,14 @@ import { Course } from "../../../domain/Course";
 import { Prerequisite } from "../../../domain/Prerequisite";
 
 export class CourseMapper {
-  // Requires populated prereqs:
-  // CourseModel.findById(id).populate("prereqs.courses")
   static toDomain(doc: any): Course {
-    const prereqs: Prerequisite[] = Array.isArray(doc.prereqs)
-      ? doc.prereqs.map(
-          (p: any) =>
-            new Prerequisite(
-              p.courses.map((c: any) => CourseMapper.toDomain(c)),
-            ),
-        )
-      : [];
+    let prereqs: Prerequisite[];
 
-    return new Course(doc._id, doc.major ?? "", prereqs, doc.credits ?? 0);
-  }
+    for (let i = 0; i < doc.prereqs.length; i++) {
+      const courses = doc.prereqs[i].courses;
+      for (let j = 0; j < courses.length; j++) {}
+    }
 
-  static toPersistence(course: Course): Record<string, unknown> {
-    return {
-      _id: course.coursecode,
-      major: course.major,
-      prereqs: course.prereqs.map((p: Prerequisite) => ({
-        courses: p.courses.map((c: Course) => c.coursecode),
-      })),
-      credits: course.credits,
-    };
+    return new Course(doc._id, prereqs, doc.credits ?? 0);
   }
 }
