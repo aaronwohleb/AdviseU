@@ -9,11 +9,10 @@
     // See also https://aka.ms/tsconfig/module
     "module": "nodenext",
     "target": "esnext",
-    "types": [],
     // For nodejs:
-    // "lib": ["esnext"],
-    // "types": ["node"],
-    // and npm install -D @types/node
+    "lib": ["esnext"],
+    "types": ["node"],
+    //and npm install -D @types/node
 
     // Other Outputs
     "sourceMap": true,
@@ -39,6 +38,10 @@
     "isolatedModules": true,
     "noUncheckedSideEffectImports": true,
     "moduleDetection": "force",
-    "skipLibCheck": true
+    "skipLibCheck": true,
+
+    // Logic Solver is CommonJS, so we need to allow synthetic default imports
+      "esModuleInterop": true,
+      "allowSyntheticDefaultImports": true,
   }
 }

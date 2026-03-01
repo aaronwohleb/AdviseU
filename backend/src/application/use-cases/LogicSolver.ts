@@ -1,6 +1,5 @@
 import { Major } from "../../domain/Major";
-const Logic = require("logic-solver");
+import Logic from "logic-solver";
+import { Course } from "../../domain/Course";
+import { Prerequisite } from "../../domain/Prerequisite";
 
-function convertMajorToFormula(major: Major) {
-    
-}
